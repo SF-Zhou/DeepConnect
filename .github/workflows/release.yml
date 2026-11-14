@@ -1,0 +1,157 @@
+name: Release
+
+# Pushing a tag such as `v1.0.0` builds a signed release APK and attaches it
+# (together with its SHA-256 checksum) to a GitHub Release.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_BASE64    base64 of the release keystore (.jks)
+#   ANDROID_KEYSTORE_PASSWORD  keystore password
+#   ANDROID_KEY_ALIAS          key alias (e.g. "deepconnect")
+#   ANDROID_KEY_PASSWORD       key password
+#
+# Create the base64 value with:  base64 -i release.jks | tr -d '\n'
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version label used for the artifact names (e.g. v1.0.0)'
+        required: true
+        default: 'v0.0.0-dev'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build signed release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          # Do not leave the workflow token in .git/config for the rest of the job.
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform and build tools
+        run: |
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore the release signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ] || [ -z "${KEYSTORE_PASSWORD:-}" ] \
+             || [ -z "${KEY_ALIAS:-}" ] || [ -z "${KEY_PASSWORD:-}" ]; then
+            echo "::error title=Missing signing secrets::Configure ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD. See README.md#releasing."
+            exit 1
+          fi
+          KEYSTORE="$RUNNER_TEMP/deepconnect-release.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+          cat > keystore.properties <<EOF
+          storeFile=$KEYSTORE
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      - name: Assemble signed release APK
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Verify the APK signature
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -f "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$APK" | head -5
+
+      - name: Prepare release assets
+        env:
+          # Untrusted-ish input goes through the environment, never interpolated into the
+          # shell script text (prevents command injection on a signing runner).
+          VERSION_INPUT: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            VERSION="$GITHUB_REF_NAME"
+          else
+            VERSION="${VERSION_INPUT:-v0.0.0-dev}"
+          fi
+          # Only allow a conservative version charset (also guards the artifact name).
+          if ! printf '%s' "$VERSION" | grep -Eq '^v?[0-9A-Za-z._+-]{1,64}$'; then
+            echo "::error title=Invalid version::'$VERSION' is not an allowed version label."
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk "out/DeepConnect-${VERSION}.apk"
+          cd out
+          sha256sum "DeepConnect-${VERSION}.apk" > "DeepConnect-${VERSION}.apk.sha256"
+          ls -lh
+          {
+            echo "### DeepConnect ${VERSION}"
+            echo '```'
+            cat "DeepConnect-${VERSION}.apk.sha256"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeepConnect-release
+          path: out/*
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download built assets
+        uses: actions/download-artifact@v4
+        with:
+          name: DeepConnect-release
+          path: out
+
+      - name: Create or update the release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: DeepConnect ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            out/DeepConnect-*.apk
+            out/DeepConnect-*.apk.sha256
