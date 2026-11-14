@@ -147,7 +147,7 @@ jobs:
           path: out
 
       - name: Create or update the release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: DeepConnect ${{ github.ref_name }}
           generate_release_notes: true
