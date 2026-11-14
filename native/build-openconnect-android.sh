@@ -34,9 +34,11 @@ OC_RELEASE="${OPENCONNECT_RELEASE:-25-g70d1e79d}"
 # these make the shipped library report a meaningful, pinned version instead.
 export RPM_PACKAGE_VERSION="$OC_VERSION"
 export RPM_PACKAGE_RELEASE="$OC_RELEASE"
-ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/android-sdk}}"
+# Generic defaults so the script also works on a fresh checkout: set ANDROID_HOME /
+# ANDROID_SDK_ROOT, or install the SDK via Android Studio in the default location.
+ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"
 NDK="${ANDROID_NDK_HOME:-$ANDROID_HOME/ndk/27.2.12479018}"
-JDK="${JAVA_HOME:-$HOME/jdk17}"
+JDK="${JAVA_HOME:-}"
 API_LEVEL="${API_LEVEL:-24}"
 ABI="${ABI:-arm64-v8a}"
 JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)}"
@@ -75,7 +77,10 @@ log() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 
 [ -d "$OC_SRC" ]        || { echo "ERROR: OpenConnect source not found at $OC_SRC" >&2; exit 1; }
 [ -d "$NDK" ]           || { echo "ERROR: Android NDK not found at $NDK" >&2; exit 1; }
-[ -x "$JDK/bin/javac" ] || { echo "ERROR: JDK not found at $JDK" >&2; exit 1; }
+if [ -z "$JDK" ] || [ ! -x "$JDK/bin/javac" ]; then
+  echo "ERROR: JDK not found. Set JAVA_HOME to a JDK 17 installation." >&2
+  exit 1
+fi
 [ -d "$TOOLCHAIN" ]     || { echo "ERROR: NDK LLVM toolchain not found at $TOOLCHAIN" >&2; exit 1; }
 
 if [ "$CLEAN" = "1" ]; then
