@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Do not leave the workflow token in .git/config for the rest of the job.
           persist-credentials: false
