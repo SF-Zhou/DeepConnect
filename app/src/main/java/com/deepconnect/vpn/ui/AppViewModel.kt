@@ -55,6 +55,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _autoConnectOnLaunch = MutableStateFlow(settings.autoConnectOnLaunch)
     val autoConnectOnLaunch: StateFlow<Boolean> = _autoConnectOnLaunch.asStateFlow()
 
+    private val _themeMode = MutableStateFlow(settings.themeMode)
+    val themeMode: StateFlow<String> = _themeMode.asStateFlow()
+
+    private val _dynamicColor = MutableStateFlow(settings.dynamicColor)
+    val dynamicColor: StateFlow<Boolean> = _dynamicColor.asStateFlow()
+
     private var pendingProfile: Profile? = null
     private var autoConnectAttempted = false
 
@@ -161,6 +167,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setAutoConnectOnLaunch(enabled: Boolean) {
         settings.autoConnectOnLaunch = enabled
         _autoConnectOnLaunch.value = enabled
+    }
+
+    fun setThemeMode(mode: String) {
+        val normalised = when (mode) {
+            AppSettings.THEME_LIGHT, AppSettings.THEME_DARK -> mode
+            else -> AppSettings.THEME_SYSTEM
+        }
+        settings.themeMode = normalised
+        _themeMode.value = normalised
+    }
+
+    fun setDynamicColor(enabled: Boolean) {
+        settings.dynamicColor = enabled
+        _dynamicColor.value = enabled
     }
 
     fun consumeMessage() {

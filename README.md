@@ -4,7 +4,7 @@ An Android OpenConnect VPN client. It speaks the real AnyConnect/OpenConnect
 protocol (Cisco AnyConnect, ocserv, Juniper/Pulse, GlobalProtect, Fortinet, F5)
 by linking the upstream [OpenConnect](https://www.infradead.org/openconnect/)
 library through its official JNI bindings, and it wraps that into a modern
-Material 3 UI on top of Android's `VpnService`.
+"aurora security" Material 3 UI on top of Android's `VpnService`.
 
 Everything runs inside the app process: no root, no helper binary, no
 `run_pie` wrapper, no `--script-tun` shell script. The tun file descriptor is
@@ -42,12 +42,22 @@ created by Android and handed to `libopenconnect` with `setupTunFD()`.
   timestamps, connection stage, TLS/DTLS ciphers, local address, MTU and DNS.
 - **IPv4 and IPv6**, split-tunnel include routes, split-exclude routes on
   Android 13+, DNS servers, live network changes (`setUnderlyingNetworks`).
+- **Redesigned UI** – animated connection orb with live session timer, aurora
+  gradient backdrop, frosted glass cards, a custom thin-line icon set (no
+  Material icon artifacts), bottom navigation, animated traffic counters,
+  swipe-to-delete with undo, haptics and motion throughout. System/Light/Dark
+  theme plus harmonised Material You dynamic colour; the certificate-trust and
+  one-time-password prompts are modal glass dialogs with fingerprint copy.
 
 ## Screenshots
 
-| Edit profile | Connected | Settings | Log |
-| --- | --- | --- | --- |
-| ![Edit](docs/screenshots/01-edit-profile.png) | ![Connected](docs/screenshots/03-connected.png) | ![Settings](docs/screenshots/04-settings.png) | ![Log](docs/screenshots/05-log.png) |
+| Profiles (dark) | Connected | Certificate trust |
+| --- | --- | --- |
+| ![Profiles](docs/screenshots/02-profiles.png) | ![Connected](docs/screenshots/03-connected.png) | ![Certificate](docs/screenshots/06-certificate.png) |
+
+| Edit profile | Settings | Connection log |
+| --- | --- | --- |
+| ![Edit](docs/screenshots/01-edit-profile.png) | ![Settings](docs/screenshots/04-settings.png) | ![Log](docs/screenshots/05-log.png) |
 
 ## Repository layout
 
@@ -90,9 +100,11 @@ docs/screenshots/
 | Tool | Version used here |
 | --- | --- |
 | JDK | 17 (Temurin) |
-| Android SDK | platform 35, build-tools 35.0.0 |
-| Android NDK | 27.2.12479018 |
-| Gradle | 8.9 (wrapper included) |
+| Android SDK | platform 37 (compileSdk 37), build-tools 37.0.0, targetSdk 36 |
+| Android NDK | 27.2.12479018 (only needed to rebuild `libopenconnect.so`) |
+| Gradle | 9.9.1 (wrapper included, checksum verified) |
+| Android Gradle plugin | 9.5.1 — compiles Kotlin itself ("built-in Kotlin", Kotlin 2.2.10), no `kotlin-android` plugin |
+| Jetpack Compose | BOM 2026.09.00 |
 | Host build tools | autoconf, automake, libtool, pkg-config, gettext |
 
 Paths are configurable: `JAVA_HOME` and `ANDROID_HOME` are honoured, and
@@ -356,6 +368,19 @@ the same unmodified library code path as the CLI.
 
 ## Changelog
 
+- **2.0.0** — full UI redesign ("Aurora Security"): animated connection orb
+  with live session timer, aurora gradients, custom thin-line icon set (the
+  deprecated Material icon artifacts were removed), floating glass bottom
+  navigation, redesigned log viewer with filters/search/copy/share and
+  auto-follow, restructured settings with theme mode (System/Light/Dark) and
+  harmonised dynamic colour, redesigned profile editor with validation and an
+  unsaved-changes guard, swipe-to-delete with undo, haptics and motion
+  throughout, new adaptive launcher icon. Toolchain upgraded to AGP 9.5.1 /
+  Gradle 9.9.1 / built-in Kotlin 2.2.10 / Compose BOM 2026.09.00 /
+  compileSdk 37 / targetSdk 36, AndroidX core-ktx 1.19.1,
+  activity-compose 1.13.0, lifecycle 2.11.0, navigation-compose 2.10.2,
+  coroutines 1.11.0; GitHub Actions bumped to checkout@v7, setup-java@v6,
+  gradle/actions@v6, upload/download-artifact v7/v8, action-gh-release@v3.
 - **1.1.2** — fix split-tunnel routes: OpenConnect reports `X-CSTP-Split-Include` as
   `address/netmask`, which the CIDR parser rejected, so every split route was
   silently dropped and internal resources were unreachable through the tunnel on

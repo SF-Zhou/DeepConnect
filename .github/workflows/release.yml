@@ -37,13 +37,13 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Do not leave the workflow token in .git/config for the rest of the job.
           persist-credentials: false
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
@@ -88,10 +88,11 @@ jobs:
           yes | "$TOOLS_BIN/sdkmanager" --sdk_root="$SDK_ROOT" --licenses > /dev/null 2>&1 || true
           set -o pipefail
           "$TOOLS_BIN/sdkmanager" --sdk_root="$SDK_ROOT" --install \
-            "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+            "platforms;android-37.0" "platforms;android-37.2" \
+            "build-tools;37.0.0" "platform-tools"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Restore the release signing key
         env:
@@ -124,10 +125,12 @@ jobs:
           set -euo pipefail
           APK=app/build/outputs/apk/release/app-release.apk
           test -f "$APK"
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          BUILD_TOOLS="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          echo "Using build-tools: $BUILD_TOOLS"
+          "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
           # Redirect before `head`: piping aapt2 into `head` would SIGPIPE it and
           # `set -o pipefail` would then fail the step.
-          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$APK" > /tmp/badging.txt
+          "$BUILD_TOOLS/aapt2" dump badging "$APK" > /tmp/badging.txt
           head -5 /tmp/badging.txt
 
       - name: Prepare release assets
@@ -161,7 +164,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: DeepConnect-release
           path: out/*
@@ -179,13 +182,13 @@ jobs:
 
     steps:
       - name: Download built assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: DeepConnect-release
           path: out
 
       - name: Create or update the release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: DeepConnect ${{ github.ref_name }}
           generate_release_notes: true

@@ -27,10 +27,26 @@ class AppSettings(context: Context) {
         get() = prefs.getBoolean(KEY_AUTO_CONNECT_ON_LAUNCH, false)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_CONNECT_ON_LAUNCH, value).apply()
 
+    /** Colour theme: "system" (follow OS), "light" or "dark". */
+    var themeMode: String
+        get() = prefs.getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
+        set(value) = prefs.edit().putString(KEY_THEME_MODE, value).apply()
+
+    /** Use the Android 12+ dynamic (Material You) palette when available. */
+    var dynamicColor: Boolean
+        get() = prefs.getBoolean(KEY_DYNAMIC_COLOR, true)
+        set(value) = prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, value).apply()
+
     companion object {
         private const val KEY_LOG_LEVEL = "log_level"
         private const val KEY_LAST_PROFILE = "last_profile"
         private const val KEY_LOG_TIMESTAMPS = "log_timestamps"
         private const val KEY_AUTO_CONNECT_ON_LAUNCH = "auto_connect_on_launch"
+        private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_DYNAMIC_COLOR = "dynamic_color"
+
+        const val THEME_SYSTEM = "system"
+        const val THEME_LIGHT = "light"
+        const val THEME_DARK = "dark"
     }
 }

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="window_background">#FFF7FAFC</color>
-    <color name="ic_launcher_background">#FF0F3D3E</color>
+    <!-- Dark-first window background so launching never flashes a bright surface. -->
+    <color name="window_background">#FF050B10</color>
 </resources>

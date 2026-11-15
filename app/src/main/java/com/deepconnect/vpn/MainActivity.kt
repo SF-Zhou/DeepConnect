@@ -11,8 +11,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -21,25 +23,29 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.deepconnect.vpn.ui.AppViewModel
-import com.deepconnect.vpn.ui.DeepConnectTheme
-import com.deepconnect.vpn.ui.EditProfileScreen
-import com.deepconnect.vpn.ui.HomeScreen
-import com.deepconnect.vpn.ui.LogScreen
-import com.deepconnect.vpn.ui.PromptDialogs
-import com.deepconnect.vpn.ui.SettingsScreen
+import com.deepconnect.vpn.ui.components.AuroraBackdrop
+import com.deepconnect.vpn.ui.components.AuroraBottomBar
+import com.deepconnect.vpn.ui.components.AuroraTab
+import com.deepconnect.vpn.ui.components.PromptDialogs
+import com.deepconnect.vpn.ui.screens.EditProfileScreen
+import com.deepconnect.vpn.ui.screens.HomeScreen
+import com.deepconnect.vpn.ui.screens.LogsScreen
+import com.deepconnect.vpn.ui.screens.SettingsScreen
+import com.deepconnect.vpn.ui.theme.DeepConnectTheme
 
-private const val ROUTE_HOME = "home"
-private const val ROUTE_SETTINGS = "settings"
-private const val ROUTE_LOGS = "logs"
 private const val ROUTE_EDIT = "edit/{profileId}"
 
 private fun editRoute(profileId: Long): String = "edit/$profileId"
@@ -50,9 +56,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            DeepConnectTheme {
+            val viewModel: AppViewModel = viewModel()
+            val themeMode by viewModel.themeMode.collectAsState()
+            val dynamicColor by viewModel.dynamicColor.collectAsState()
+            DeepConnectTheme(themeMode = themeMode, dynamicColor = dynamicColor) {
                 // Only a genuine launcher start (ACTION_MAIN) may trigger auto-connect.
-                AppRoot(fromLauncher = intent?.action == Intent.ACTION_MAIN)
+                AppRoot(viewModel = viewModel, fromLauncher = intent?.action == Intent.ACTION_MAIN)
             }
         }
     }
@@ -60,8 +69,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun AppRoot(
+    viewModel: AppViewModel,
     fromLauncher: Boolean,
-    viewModel: AppViewModel = viewModel(),
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -84,8 +93,6 @@ private fun AppRoot(
 
     // "Auto-connect on launch": runs at most once per app process, after the consent
     // launcher above is ready so a missing VPN permission can be requested normally.
-    // Only a genuine launcher start may connect: otherwise any app that fires an explicit
-    // intent at this activity could make us bring the tunnel up.
     LaunchedEffect(Unit) {
         viewModel.maybeAutoConnectOnLaunch(context, fromLauncher)
     }
@@ -112,49 +119,72 @@ private fun AppRoot(
     }
 
     val prompt by viewModel.prompt.collectAsState()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+    val selectedTab = AuroraTab.entries.firstOrNull { tab -> tab.route == currentRoute }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        NavHost(
-            navController = navController,
-            startDestination = ROUTE_HOME,
+    AuroraBackdrop {
+        Scaffold(
             modifier = Modifier.fillMaxSize(),
-        ) {
-            composable(ROUTE_HOME) {
-                HomeScreen(
-                    viewModel = viewModel,
-                    onAddProfile = { navController.navigate(editRoute(0L)) },
-                    onEditProfile = { profileId -> navController.navigate(editRoute(profileId)) },
-                    onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
-                    onOpenLogs = { navController.navigate(ROUTE_LOGS) },
-                )
-            }
-            composable(
-                route = ROUTE_EDIT,
-                arguments = listOf(navArgument("profileId") { type = NavType.LongType }),
-            ) { entry ->
-                EditProfileScreen(
-                    viewModel = viewModel,
-                    profileId = entry.arguments?.getLong("profileId") ?: 0L,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-            composable(ROUTE_SETTINGS) {
-                SettingsScreen(
-                    viewModel = viewModel,
-                    onBack = { navController.popBackStack() },
-                    onOpenLogs = { navController.navigate(ROUTE_LOGS) },
-                )
-            }
-            composable(ROUTE_LOGS) {
-                LogScreen(
-                    viewModel = viewModel,
-                    onBack = { navController.popBackStack() },
-                )
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            bottomBar = {
+                if (selectedTab != null) {
+                    AuroraBottomBar(
+                        selected = selectedTab,
+                        onSelect = { tab -> navController.navigateToTab(tab) },
+                    )
+                }
+            },
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = AuroraTab.Home.route,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = innerPadding.calculateBottomPadding()),
+            ) {
+                composable(AuroraTab.Home.route) {
+                    HomeScreen(
+                        viewModel = viewModel,
+                        onAddProfile = { navController.navigate(editRoute(0L)) },
+                        onEditProfile = { profileId -> navController.navigate(editRoute(profileId)) },
+                    )
+                }
+                composable(AuroraTab.Logs.route) {
+                    LogsScreen(viewModel = viewModel)
+                }
+                composable(AuroraTab.Settings.route) {
+                    SettingsScreen(
+                        viewModel = viewModel,
+                        onOpenLogs = { navController.navigateToTab(AuroraTab.Logs) },
+                        onOpenProfiles = { navController.navigateToTab(AuroraTab.Home) },
+                    )
+                }
+                composable(
+                    route = ROUTE_EDIT,
+                    arguments = listOf(navArgument("profileId") { type = NavType.LongType }),
+                ) { entry ->
+                    EditProfileScreen(
+                        viewModel = viewModel,
+                        profileId = entry.arguments?.getLong("profileId") ?: 0L,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
             }
         }
 
         // Certificate trust / one-time-password prompts block the native handshake, so they
         // float above whatever screen is currently visible.
         PromptDialogs(prompt = prompt)
+    }
+}
+
+/** Bottom-navigation style tab switch with state preservation. */
+private fun NavHostController.navigateToTab(tab: AuroraTab) {
+    navigate(tab.route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }

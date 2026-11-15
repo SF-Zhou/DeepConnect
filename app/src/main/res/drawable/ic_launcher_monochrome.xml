@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (monochrome) launcher icon: shield silhouette with the portal core knocked out. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M54,24 L78,33 L78,55 C78,70 67.5,80.5 54,85 C40.5,80.5 30,70 30,55 L30,33 Z M54,39 C46.8,39 41,44.8 41,52 C41,59.2 46.8,65 54,65 C61.2,65 67,59.2 67,52 C67,44.8 61.2,39 54,39 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,48.5 A3.5,3.5 0 1,1 54,55.5 A3.5,3.5 0 1,1 54,48.5 Z" />
+</vector>

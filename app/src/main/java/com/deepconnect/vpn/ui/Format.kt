@@ -49,3 +49,21 @@ internal fun profileInitials(name: String): String {
         else -> (parts[0].take(1) + parts[1].take(1)).uppercase(Locale.getDefault())
     }
 }
+
+private val ClockFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
+
+/** Formats a wall-clock instant as local "HH:mm". */
+internal fun formatClockTime(epochMillis: Long): String =
+    ClockFormatter.format(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()))
+
+/** Compact packet counter, e.g. 1234 -> "1.2k". */
+internal fun formatPacketCount(packets: Long): String {
+    if (packets < 1_000L) return packets.toString()
+    if (packets < 1_000_000L) {
+        return String.format(Locale.US, "%.1fk", packets / 1_000.0)
+    }
+    return String.format(Locale.US, "%.1fM", packets / 1_000_000.0)
+}
+
+/** Formats a byte count for a stat tile, e.g. 0 -> "0 B". */
+internal fun formatTraffic(bytes: Long): String = formatBytes(bytes)
