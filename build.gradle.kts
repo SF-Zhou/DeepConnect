@@ -5,5 +5,5 @@
 // it together with the AGP version above and never on its own.
 plugins {
     id("com.android.application") version "9.5.1" apply false
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.21" apply false
 }
